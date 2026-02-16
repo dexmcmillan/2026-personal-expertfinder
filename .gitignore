@@ -1,0 +1,23 @@
+# Data files
+data/
+*.db
+*.csv
+*.npy
+professor_urls.csv
+professors.db
+embeddings.npy
+
+# API keys
+*api_key*.txt
+gemini_api_key.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
