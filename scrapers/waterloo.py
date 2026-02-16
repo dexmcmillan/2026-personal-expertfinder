@@ -3,11 +3,10 @@ University of Waterloo faculty scraper.
 
 Directory structure:
 - No central directory. Faculty organized by department.
-- Contact/people pages vary by department:
-  - /about/people (common)
-  - /contacts (common)
-- Profile URLs: /{dept-slug}/about/people/{username} or /{dept-slug}/contacts/{username}
-- No pagination — all faculty typically on one page per department.
+- Listing pages: /about/people, /contacts
+- Rich profile pages: /{dept-slug}/profiles/{name} or /{dept-slug}/people-profiles/{name}
+- Contacts pages are thin (just name/email). Profile pages have full bios + research interests.
+- Strategy: scrape listing pages for links, prefer /profiles/ URLs for extraction.
 """
 
 import re
@@ -83,8 +82,9 @@ def _is_profile_link(href: str, dept_slug: str) -> bool:
     """Check if a link looks like a professor profile URL for this department."""
     if not href:
         return False
-    # Match patterns like /dept/about/people/username or /dept/contacts/username
     patterns = [
+        f"/{dept_slug}/profiles/",
+        f"/{dept_slug}/people-profiles/",
         f"/{dept_slug}/about/people/",
         f"/{dept_slug}/contacts/",
         f"/{dept_slug}/profile/",
@@ -99,10 +99,19 @@ def _normalize_url(href: str) -> str:
     return f"{BASE_URL}{href}"
 
 
+def _is_rich_profile(url: str) -> bool:
+    """Check if URL points to a rich profile page (vs thin contacts page)."""
+    return "/profiles/" in url or "/people-profiles/" in url
+
+
 def harvest_department(dept_slug: str, faculty: str) -> list[tuple[str, str, str]]:
-    """Scrape a single department's people/contacts pages for professor profile URLs."""
-    results = []
+    """Scrape a single department's people/contacts pages for professor profile URLs.
+
+    Prefers /profiles/ URLs (rich bios) over /contacts/ URLs (thin).
+    """
     seen_urls = set()
+    rich_urls = []  # /profiles/ and /people-profiles/ URLs
+    thin_urls = []  # /contacts/ and /about/people/ URLs
 
     # Try multiple known page patterns for faculty listings
     page_paths = [
@@ -125,16 +134,21 @@ def harvest_department(dept_slug: str, faculty: str) -> list[tuple[str, str, str
             href = link["href"]
             if _is_profile_link(href, dept_slug):
                 profile_url = _normalize_url(href)
-                # Skip if it's just the listing page itself
+                # Skip listing pages themselves
                 if profile_url.rstrip("/") in (f"{BASE_URL}{p}" for p in page_paths):
                     continue
                 if profile_url not in seen_urls:
                     seen_urls.add(profile_url)
-                    results.append((SCHOOL_NAME, faculty, profile_url))
+                    entry = (SCHOOL_NAME, faculty, profile_url)
+                    if _is_rich_profile(profile_url):
+                        rich_urls.append(entry)
+                    else:
+                        thin_urls.append(entry)
 
         polite_delay(1.0)
 
-    return results
+    # Prefer rich profile URLs; fall back to thin if no rich ones found
+    return rich_urls if rich_urls else thin_urls
 
 
 def harvest_all() -> list[tuple[str, str, str]]:
