@@ -40,7 +40,6 @@ def main():
         return
 
     schools_to_scrape = [args.school] if args.school else list(SCHOOLS.keys())
-    all_urls = []
 
     for school in schools_to_scrape:
         if school not in SCHOOLS:
@@ -49,12 +48,15 @@ def main():
         print(f"Harvesting {school}...")
         scraper = get_scraper(school)
         urls = scraper.harvest_all()
-        all_urls.extend(urls)
-        print(f"  Total: {len(urls)} URLs")
 
-    output_path = Path(args.output)
-    save_urls_to_csv(all_urls, output_path)
-    print(f"\nSaved {len(all_urls)} URLs to {output_path}")
+        # Save per-school CSV (e.g. professor_urls_waterloo.csv)
+        # Use explicit --output if provided, otherwise auto-name per school
+        if args.output != "professor_urls.csv" or len(schools_to_scrape) == 1:
+            output_path = Path(args.output) if args.output != "professor_urls.csv" else Path(f"professor_urls_{school}.csv")
+        else:
+            output_path = Path(f"professor_urls_{school}.csv")
+        save_urls_to_csv(urls, output_path)
+        print(f"  Saved {len(urls)} URLs to {output_path}")
 
 
 if __name__ == "__main__":
