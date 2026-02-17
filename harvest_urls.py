@@ -16,6 +16,7 @@ from scrapers.utils import save_urls_to_csv
 # Registry of school scrapers: name -> module path
 SCHOOLS = {
     "waterloo": "scrapers.waterloo",
+    "queens": "scrapers.queens",
 }
 
 
