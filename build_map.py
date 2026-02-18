@@ -191,6 +191,14 @@ def main():
   #search::placeholder {{ color: #555; }}
   #searchStatus {{ font-size: 12px; color: #888; min-width: 70px; }}
   #plot {{ width: 100vw; height: calc(100vh - 90px); }}
+  #tooltip {{ display: none; position: fixed; pointer-events: none; z-index: 1000; visibility: hidden;
+              background: #1e1e2e; border: 1px solid #444; border-radius: 6px; padding: 12px 16px;
+              max-width: 300px; font-size: 12px; color: #e0e0e0; line-height: 1.6;
+              box-shadow: 0 4px 16px rgba(0,0,0,0.6); }}
+  #tooltip .tt-name {{ font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #fff; }}
+  #tooltip .tt-school {{ color: #aaa; }}
+  #tooltip .tt-dept {{ color: #888; margin-bottom: 8px; }}
+  #tooltip .tt-bio {{ color: #ccc; font-style: italic; border-top: 1px solid #333; padding-top: 8px; margin-top: 4px; }}
 </style>
 </head>
 <body>
@@ -208,101 +216,59 @@ def main():
   <span id="searchStatus"></span>
 </div>
 <div id="plot"></div>
+<div id="tooltip"></div>
 <script>
 const DATA = {data_json};
 const SCHOOL_COLORS = {json.dumps(school_colors)};
 const CLUSTERS = {annotations_json};
 
-function wrapText(str, maxLen) {{
-  if (!str) return str;
-  const words = str.split(" ");
-  const lines = [];
-  let line = "";
-  for (const word of words) {{
-    if ((line + " " + word).trim().length > maxLen && line) {{
-      lines.push(line);
-      line = word;
-    }} else {{
-      line = (line + " " + word).trim();
-    }}
-  }}
-  if (line) lines.push(line);
-  return lines.join("<br>");
-}}
-
+// Traces store DATA index in customdata so hover/click can look up the full record
 function getTraces(colorField) {{
   const groups = {{}};
-  DATA.forEach(p => {{
+  DATA.forEach((p, i) => {{
     const key = p[colorField] || "Unknown";
-    if (!groups[key]) groups[key] = {{ x: [], y: [], text: [], urls: [] }};
+    if (!groups[key]) groups[key] = {{ x: [], y: [], ids: [] }};
     groups[key].x.push(p.x);
     groups[key].y.push(p.y);
-    const bio = p.bio ? `<br>&nbsp;&nbsp;<i>${{wrapText(p.bio, 55)}}</i>` : "";
-    groups[key].text.push(
-      `&nbsp;<b>${{p.name}}</b><br>&nbsp;${{p.school}} · ${{p.department}}${{bio}}<br>&nbsp;`
-    );
-    groups[key].urls.push(p.url);
+    groups[key].ids.push(i);
   }});
-
-  return Object.entries(groups).map(([name, g], i) => ({{
+  return Object.entries(groups).map(([name, g]) => ({{
     x: g.x, y: g.y,
-    text: g.text,
-    customdata: g.urls,
-    type: "scattergl",
-    mode: "markers",
-    name: name,
+    customdata: g.ids,
+    type: "scattergl", mode: "markers", name: name,
+    hoverinfo: "none",
     marker: {{
-      size: 5,
-      opacity: 0.7,
+      size: 5, opacity: 0.7,
       color: colorField === "school" ? (SCHOOL_COLORS[name] || "#888") : undefined,
     }},
-    hovertemplate: "%{{text}}<extra></extra>",
   }}));
 }}
 
 const layout = {{
-  paper_bgcolor: "#0f0f0f",
-  plot_bgcolor: "#0f0f0f",
+  paper_bgcolor: "#0f0f0f", plot_bgcolor: "#0f0f0f",
   font: {{ color: "#ccc", size: 11 }},
   margin: {{ l: 0, r: 0, t: 0, b: 0 }},
-  xaxis: {{ visible: false }},
-  yaxis: {{ visible: false }},
+  xaxis: {{ visible: false }}, yaxis: {{ visible: false }},
   legend: {{ bgcolor: "rgba(0,0,0,0.6)", x: 0.01, y: 0.99 }},
-  hoverlabel: {{
-    namelength: -1,
-    bgcolor: "#1e1e2e",
-    bordercolor: "#555",
-    align: "left",
-    font: {{ size: 12, color: "#e0e0e0",
-             family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }},
-  }},
-  hovermode: "closest",
-  dragmode: "pan",
+  hovermode: "closest", dragmode: "pan",
   annotations: CLUSTERS.map(c => ({{
-    x: c.x, y: c.y,
-    text: c.label,
-    showarrow: false,
+    x: c.x, y: c.y, text: c.label, showarrow: false,
     font: {{ color: "rgba(255,255,255,0.75)", size: 11 }},
-    bgcolor: "rgba(0,0,0,0.5)",
-    borderpad: 3,
+    bgcolor: "rgba(0,0,0,0.5)", borderpad: 3,
   }})),
 }};
 
-const config = {{
-  scrollZoom: true,
-  displayModeBar: false,
-  responsive: true,
-}};
+const config = {{ scrollZoom: true, displayModeBar: false, responsive: true }};
 
 document.getElementById("count").textContent = DATA.length.toLocaleString() + " professors";
 
-// Highlight trace — always the last trace; index tracked in hlTraceIdx
+// Highlight trace — hoverinfo "skip" so hover events come from underlying data traces
 const hlTrace = {{
-  x: [], y: [], text: [],
+  x: [], y: [], customdata: [],
   type: "scattergl", mode: "markers", name: "",
+  hoverinfo: "skip",
   marker: {{ size: 14, color: "rgba(0,0,0,0)", symbol: "circle-open",
              line: {{ width: 3, color: "#FFD700" }} }},
-  hovertemplate: "%{{text}}<extra></extra>",
   showlegend: false,
 }};
 let hlTraceIdx = 0;
@@ -319,32 +285,61 @@ document.getElementById("colorBy").addEventListener("change", (e) => {{
   Plotly.react("plot", getAllTraces(e.target.value), layout);
 }});
 
+// Custom tooltip
+const tooltip = document.getElementById("tooltip");
+
+document.getElementById("plot").on("plotly_hover", (data) => {{
+  const pt = data.points[0];
+  const idx = pt.customdata;
+  if (idx == null || !DATA[idx]) return;
+  const p = DATA[idx];
+  let html = `<div class="tt-name">${{p.name}}</div>
+              <div class="tt-school">${{p.school}}</div>
+              <div class="tt-dept">${{p.department}}</div>`;
+  if (p.bio) html += `<div class="tt-bio">${{p.bio}}</div>`;
+  tooltip.innerHTML = html;
+  tooltip.style.display = "block";
+  const e = data.event;
+  const rect = tooltip.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let left = e.clientX + 16, top = e.clientY - 10;
+  if (left + rect.width  > vw - 10) left = e.clientX - rect.width  - 16;
+  if (top  + rect.height > vh - 10) top  = e.clientY - rect.height + 10;
+  tooltip.style.left = left + "px";
+  tooltip.style.top  = top  + "px";
+  tooltip.style.visibility = "visible";
+}});
+
+document.getElementById("plot").on("plotly_unhover", () => {{
+  tooltip.style.visibility = "hidden";
+}});
+
 // Search
 let searchTimer = null;
 function doSearch(query) {{
   const status = document.getElementById("searchStatus");
   const q = query.trim().toLowerCase();
   if (!q) {{
-    hlTrace.x = []; hlTrace.y = []; hlTrace.text = [];
-    Plotly.restyle("plot", {{ x: [[]], y: [[]], text: [[]] }}, [hlTraceIdx]);
+    hlTrace.x = []; hlTrace.y = []; hlTrace.customdata = [];
+    Plotly.restyle("plot", {{ x: [[]], y: [[]], customdata: [[]] }}, [hlTraceIdx]);
     status.textContent = "";
     return;
   }}
-  const matches = DATA.filter(p =>
-    p.name.toLowerCase().includes(q) ||
-    p.keywords.toLowerCase().includes(q) ||
-    p.department.toLowerCase().includes(q)
-  );
+  const matches = DATA.reduce((acc, p, i) => {{
+    if (p.name.toLowerCase().includes(q) ||
+        p.keywords.toLowerCase().includes(q) ||
+        p.department.toLowerCase().includes(q)) acc.push(i);
+    return acc;
+  }}, []);
   status.textContent = matches.length
     ? `${{matches.length}} match${{matches.length !== 1 ? "es" : ""}}`
     : "No matches";
-  hlTrace.x = matches.map(m => m.x);
-  hlTrace.y = matches.map(m => m.y);
-  hlTrace.text = matches.map(m => `<b>${{m.name}}</b><br>${{m.school}} · ${{m.department}}`);
-  Plotly.restyle("plot", {{ x: [hlTrace.x], y: [hlTrace.y], text: [hlTrace.text] }}, [hlTraceIdx]);
+  hlTrace.x = matches.map(i => DATA[i].x);
+  hlTrace.y = matches.map(i => DATA[i].y);
+  hlTrace.customdata = matches;
+  Plotly.restyle("plot", {{ x: [hlTrace.x], y: [hlTrace.y], customdata: [hlTrace.customdata] }}, [hlTraceIdx]);
   if (!matches.length) return;
-  // Zoom to fit all matches with padding
-  const xs = matches.map(m => m.x), ys = matches.map(m => m.y);
+  const xs = hlTrace.x, ys = hlTrace.y;
   const xmin = Math.min(...xs), xmax = Math.max(...xs);
   const ymin = Math.min(...ys), ymax = Math.max(...ys);
   const xpad = Math.max((xmax - xmin) * 0.4, 2.5);
@@ -365,8 +360,8 @@ document.getElementById("search").addEventListener("keydown", (e) => {{
 
 // Click to open profile
 document.getElementById("plot").on("plotly_click", (data) => {{
-  const url = data.points[0].customdata;
-  if (url) window.open(url, "_blank");
+  const idx = data.points[0].customdata;
+  if (idx != null && DATA[idx] && DATA[idx].url) window.open(DATA[idx].url, "_blank");
 }});
 </script>
 </body>
