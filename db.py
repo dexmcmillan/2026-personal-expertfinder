@@ -81,6 +81,34 @@ def get_professors_without_embeddings(db_path: Path) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def update_professor_expertise(
+    db_path: Path, profile_url: str, expertise_raw: str,
+    expertise_keywords: list, rich_profile_url: str | None = None,
+) -> None:
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """UPDATE professors
+        SET expertise_raw = ?, expertise_keywords = ?, embedding = NULL
+        WHERE profile_url = ?""",
+        (expertise_raw, json.dumps(expertise_keywords), profile_url),
+    )
+    if rich_profile_url:
+        # Check if the rich URL already exists (duplicate entry)
+        existing = conn.execute(
+            "SELECT id FROM professors WHERE profile_url = ?", (rich_profile_url,)
+        ).fetchone()
+        if existing:
+            # Rich profile already in DB — delete the thin duplicate instead
+            conn.execute("DELETE FROM professors WHERE profile_url = ?", (profile_url,))
+        else:
+            conn.execute(
+                "UPDATE professors SET profile_url = ? WHERE profile_url = ?",
+                (rich_profile_url, profile_url),
+            )
+    conn.commit()
+    conn.close()
+
+
 def update_embedding(db_path: Path, profile_url: str, embedding) -> None:
     conn = sqlite3.connect(db_path)
     conn.execute(
@@ -89,3 +117,13 @@ def update_embedding(db_path: Path, profile_url: str, embedding) -> None:
     )
     conn.commit()
     conn.close()
+
+
+def clear_embeddings(db_path: Path) -> int:
+    """Set all embeddings to NULL. Returns the number of rows cleared."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute("UPDATE professors SET embedding = NULL")
+    count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return count
