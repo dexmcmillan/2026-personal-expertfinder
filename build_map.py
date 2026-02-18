@@ -213,6 +213,23 @@ const DATA = {data_json};
 const SCHOOL_COLORS = {json.dumps(school_colors)};
 const CLUSTERS = {annotations_json};
 
+function wrapText(str, maxLen) {{
+  if (!str) return str;
+  const words = str.split(" ");
+  const lines = [];
+  let line = "";
+  for (const word of words) {{
+    if ((line + " " + word).trim().length > maxLen && line) {{
+      lines.push(line);
+      line = word;
+    }} else {{
+      line = (line + " " + word).trim();
+    }}
+  }}
+  if (line) lines.push(line);
+  return lines.join("<br>");
+}}
+
 function getTraces(colorField) {{
   const groups = {{}};
   DATA.forEach(p => {{
@@ -220,7 +237,7 @@ function getTraces(colorField) {{
     if (!groups[key]) groups[key] = {{ x: [], y: [], text: [], urls: [] }};
     groups[key].x.push(p.x);
     groups[key].y.push(p.y);
-    const bio = p.bio ? `<br><i>${{p.bio}}</i>` : "";
+    const bio = p.bio ? `<br><i>${{wrapText(p.bio, 55)}}</i>` : "";
     groups[key].text.push(
       `<b>${{p.name}}</b><br>${{p.school}} · ${{p.department}}${{bio}}`
     );
@@ -251,7 +268,14 @@ const layout = {{
   xaxis: {{ visible: false }},
   yaxis: {{ visible: false }},
   legend: {{ bgcolor: "rgba(0,0,0,0.6)", x: 0.01, y: 0.99 }},
-  hoverlabel: {{ namelength: -1 }},
+  hoverlabel: {{
+    namelength: -1,
+    bgcolor: "#1e1e2e",
+    bordercolor: "#555",
+    align: "left",
+    font: {{ size: 12, color: "#e0e0e0",
+             family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }},
+  }},
   hovermode: "closest",
   dragmode: "pan",
   annotations: CLUSTERS.map(c => ({{

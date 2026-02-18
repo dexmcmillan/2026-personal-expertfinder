@@ -40,6 +40,23 @@ const DATA = [{"x": 3.1022, "y": 7.4385, "name": "Christopher Watts", "school": 
 const SCHOOL_COLORS = {"Queen's University": "#1f77b4", "University of Waterloo": "#ff7f0e"};
 const CLUSTERS = [{"x": 4.8066, "y": 10.4454, "label": "Sessional Lecturers", "size": 21}, {"x": 14.7043, "y": 6.1442, "label": "Dark Matter / Professors Emeriti", "size": 29}, {"x": 14.7319, "y": 5.5284, "label": "Lab Instructors, Demonstrators And Technicians / Adjunct Faculty / Cross-Appointed Faculty", "size": 58}, {"x": 10.3401, "y": 5.4811, "label": "Staff Academic Staff / Cross-Appointed Faculty", "size": 16}, {"x": 10.4199, "y": 4.5464, "label": "Administrative And Teaching Staff / Cross-Appointed Faculty / Adjunct Faculty", "size": 62}, {"x": 2.7964, "y": 7.9972, "label": "Architectural Design / Architecture / Urban Design", "size": 78}, {"x": 1.686, "y": 6.8801, "label": "Music Composition / Music Education", "size": 15}, {"x": 1.8801, "y": 7.3997, "label": "Faculty - Studio / Theatre / Visual Culture", "size": 21}, {"x": 11.0156, "y": 7.3286, "label": "Postdoctoral Scholars / Bioremediation / Contaminant Transport", "size": 235}, {"x": 9.0948, "y": 4.2606, "label": "Interprofessional Collaboration / Community Pharmacy / Pharmacoepidemiology", "size": 45}, {"x": 5.1638, "y": 7.3104, "label": "Social Impact Of Technology", "size": 24}, {"x": 8.1479, "y": 10.7609, "label": "Faculty Cross-Appointments / Cross-Appointed Faculty", "size": 24}, {"x": 7.3461, "y": 11.4395, "label": "Postdoctoral Scholars | Research Associates | Visitors / Logistics / Supply Chain Management", "size": 48}, {"x": 7.3383, "y": 9.5105, "label": "Information Theory / Software Engineering / Reinforcement Learning", "size": 228}, {"x": 5.6727, "y": 6.4203, "label": "Cognitive Science", "size": 18}, {"x": 9.5717, "y": 6.44, "label": "Organic Chemistry / Analytical Chemistry / Medicinal Chemistry", "size": 26}, {"x": 8.3073, "y": 7.0016, "label": "Tissue Engineering / Biomaterials / Biomechanics", "size": 22}, {"x": 7.2164, "y": 7.2385, "label": "Virtual Reality / Assistive Technology / Human Factors Engineering", "size": 80}, {"x": 8.641, "y": 7.4606, "label": "Systems Design Engineering", "size": 17}, {"x": 8.8647, "y": 8.1765, "label": "Quantum Computing / Quantum Optics / Quantum Information", "size": 32}, {"x": 9.4623, "y": 7.3239, "label": "Nanostructured Materials / Nanomaterials / Polymer Chemistry", "size": 60}, {"x": 6.9803, "y": 5.5934, "label": "Survival Analysis / Biostatistics / Event History Analysis", "size": 36}, {"x": 8.0405, "y": 5.4428, "label": "Supply Chain Management And Logistics / Search Engines / Exercise Physiology", "size": 84}, {"x": 4.461, "y": 6.2316, "label": "Classroom Assessment / Program Evaluation / Social Cognition", "size": 75}, {"x": 4.7504, "y": 5.0107, "label": "Food Security / Social Epidemiology / Social Determinants Of Health", "size": 33}, {"x": 3.1954, "y": 5.9354, "label": "Conversation Analysis / Language Education / Second Language Acquisition", "size": 23}, {"x": 4.3817, "y": 3.452, "label": "Constitutional Law / Criminal Law / Family Law", "size": 191}, {"x": 6.4674, "y": 5.0788, "label": "Quantitative Risk Management / Financial Risk Management / Risk Management", "size": 18}, {"x": 5.4549, "y": 4.4651, "label": "Environmental Economics / Natural Resource Economics / Trade Policy", "size": 16}, {"x": 5.9675, "y": 4.6487, "label": "Monetary Economics / Applied Econometrics / Industrial Organization", "size": 37}, {"x": 2.3373, "y": 5.0091, "label": "Digital Humanities / Queer Theory / Creative Writing", "size": 231}, {"x": 3.315, "y": 4.053, "label": "Political Philosophy / Social Justice", "size": 16}, {"x": 3.3196, "y": 4.5828, "label": "Indigenous Education / Colonialism / Decolonization", "size": 40}];
 
+function wrapText(str, maxLen) {
+  if (!str) return str;
+  const words = str.split(" ");
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    if ((line + " " + word).trim().length > maxLen && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = (line + " " + word).trim();
+    }
+  }
+  if (line) lines.push(line);
+  return lines.join("<br>");
+}
+
 function getTraces(colorField) {
   const groups = {};
   DATA.forEach(p => {
@@ -47,7 +64,7 @@ function getTraces(colorField) {
     if (!groups[key]) groups[key] = { x: [], y: [], text: [], urls: [] };
     groups[key].x.push(p.x);
     groups[key].y.push(p.y);
-    const bio = p.bio ? `<br><i>${p.bio}</i>` : "";
+    const bio = p.bio ? `<br><i>${wrapText(p.bio, 55)}</i>` : "";
     groups[key].text.push(
       `<b>${p.name}</b><br>${p.school} · ${p.department}${bio}`
     );
@@ -78,7 +95,14 @@ const layout = {
   xaxis: { visible: false },
   yaxis: { visible: false },
   legend: { bgcolor: "rgba(0,0,0,0.6)", x: 0.01, y: 0.99 },
-  hoverlabel: { namelength: -1 },
+  hoverlabel: {
+    namelength: -1,
+    bgcolor: "#1e1e2e",
+    bordercolor: "#555",
+    align: "left",
+    font: { size: 12, color: "#e0e0e0",
+             family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+  },
   hovermode: "closest",
   dragmode: "pan",
   annotations: CLUSTERS.map(c => ({
