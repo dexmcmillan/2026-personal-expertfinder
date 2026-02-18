@@ -64,9 +64,9 @@ function getTraces(colorField) {
     if (!groups[key]) groups[key] = { x: [], y: [], text: [], urls: [] };
     groups[key].x.push(p.x);
     groups[key].y.push(p.y);
-    const bio = p.bio ? `<br><i>${wrapText(p.bio, 55)}</i>` : "";
+    const bio = p.bio ? `<br>&nbsp;&nbsp;<i>${wrapText(p.bio, 55)}</i>` : "";
     groups[key].text.push(
-      `<b>${p.name}</b><br>${p.school} · ${p.department}${bio}`
+      `&nbsp;<b>${p.name}</b><br>&nbsp;${p.school} · ${p.department}${bio}<br>&nbsp;`
     );
     groups[key].urls.push(p.url);
   });
@@ -123,7 +123,7 @@ const config = {
 
 document.getElementById("count").textContent = DATA.length.toLocaleString() + " professors";
 
-// Highlight trace — always the last trace, targeted via index -1
+// Highlight trace — always the last trace; index tracked in hlTraceIdx
 const hlTrace = {
   x: [], y: [], text: [],
   type: "scattergl", mode: "markers", name: "",
@@ -132,9 +132,12 @@ const hlTrace = {
   hovertemplate: "%{text}<extra></extra>",
   showlegend: false,
 };
+let hlTraceIdx = 0;
 
 function getAllTraces(colorField) {
-  return [...getTraces(colorField), hlTrace];
+  const base = getTraces(colorField);
+  hlTraceIdx = base.length;
+  return [...base, hlTrace];
 }
 
 Plotly.newPlot("plot", getAllTraces("school"), layout, config);
@@ -150,7 +153,7 @@ function doSearch(query) {
   const q = query.trim().toLowerCase();
   if (!q) {
     hlTrace.x = []; hlTrace.y = []; hlTrace.text = [];
-    Plotly.restyle("plot", { x: [[]], y: [[]], text: [[]] }, [-1]);
+    Plotly.restyle("plot", { x: [[]], y: [[]], text: [[]] }, [hlTraceIdx]);
     status.textContent = "";
     return;
   }
@@ -165,7 +168,7 @@ function doSearch(query) {
   hlTrace.x = matches.map(m => m.x);
   hlTrace.y = matches.map(m => m.y);
   hlTrace.text = matches.map(m => `<b>${m.name}</b><br>${m.school} · ${m.department}`);
-  Plotly.restyle("plot", { x: [hlTrace.x], y: [hlTrace.y], text: [hlTrace.text] }, [-1]);
+  Plotly.restyle("plot", { x: [hlTrace.x], y: [hlTrace.y], text: [hlTrace.text] }, [hlTraceIdx]);
   if (!matches.length) return;
   // Zoom to fit all matches with padding
   const xs = matches.map(m => m.x), ys = matches.map(m => m.y);
