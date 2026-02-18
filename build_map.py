@@ -279,10 +279,12 @@ function getAllTraces(colorField) {{
   return [...base, hlTrace];
 }}
 
-Plotly.newPlot("plot", getAllTraces("school"), layout, config);
+let currentColorField = "school";
+Plotly.newPlot("plot", getAllTraces(currentColorField), layout, config);
 
 document.getElementById("colorBy").addEventListener("change", (e) => {{
-  Plotly.react("plot", getAllTraces(e.target.value), layout);
+  currentColorField = e.target.value;
+  Plotly.react("plot", getAllTraces(currentColorField), layout);
 }});
 
 // Custom tooltip
@@ -321,7 +323,7 @@ function doSearch(query) {{
   const q = query.trim().toLowerCase();
   if (!q) {{
     hlTrace.x = []; hlTrace.y = []; hlTrace.customdata = [];
-    Plotly.restyle("plot", {{ x: [[]], y: [[]], customdata: [[]] }}, [hlTraceIdx]);
+    Plotly.react("plot", getAllTraces(currentColorField), layout);
     status.textContent = "";
     return;
   }}
@@ -337,7 +339,7 @@ function doSearch(query) {{
   hlTrace.x = matches.map(i => DATA[i].x);
   hlTrace.y = matches.map(i => DATA[i].y);
   hlTrace.customdata = matches;
-  Plotly.restyle("plot", {{ x: [hlTrace.x], y: [hlTrace.y], customdata: [hlTrace.customdata] }}, [hlTraceIdx]);
+  Plotly.react("plot", getAllTraces(currentColorField), layout);
   if (!matches.length) return;
   const xs = hlTrace.x, ys = hlTrace.y;
   const xmin = Math.min(...xs), xmax = Math.max(...xs);
