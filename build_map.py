@@ -238,7 +238,7 @@ function getTraces(colorField) {{
     type: "scattergl", mode: "markers", name: name,
     hoverinfo: "none",
     marker: {{
-      size: 5, opacity: 0.7,
+      size: 8, opacity: 0.7,
       color: colorField === "school" ? (SCHOOL_COLORS[name] || "#888") : undefined,
     }},
   }}));
